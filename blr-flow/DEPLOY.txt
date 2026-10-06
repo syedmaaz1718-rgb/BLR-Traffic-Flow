@@ -1,0 +1,19 @@
+BLR Flow - quickest deploy
+
+1. Extract ZIP.
+2. Open https://app.netlify.com/drop while signed in.
+3. Drag the enclosed dist folder to Netlify Drop.
+4. Open the generated Netlify URL.
+
+GitHub: create repo blr-flow; upload this folder's CONTENTS, not the ZIP.
+README.md and package.json should be at repo root.
+No Python/model training required to deploy or run.
+
+Source changes: Node >=22.23.3, npm ci, npm test, npm run build.
+Netlify Git import: build npm run build, publish dist, NODE_VERSION=22.23.3.
+
+LIVE TRAFFIC: Do not use dist-only Drop for the live endpoint.
+Import the full-source GitHub repository in Netlify. Functions directory:
+netlify/functions. In Netlify UI set TOMTOM_API_KEY (Functions or All scopes),
+optionally LIVE_ACCESS_TOKEN, and redeploy. Never use a VITE_ prefix for secrets.
+See LIVE_SETUP.md for free-key steps, sources, security and honest limitations.

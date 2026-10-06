@@ -1,47 +1,58 @@
-[README.md](https://github.com/user-attachments/files/33113189/README.md)
-# ResumeLens
 
-Private, evidence-first alignment between a resume and a job description.
+# BLR Flow
+
+A Bengaluru-inspired regression simulator with hourly charts and scenario comparisons.
 
 **A working ML/data-science portfolio project, not a production decision system.**
 
 ## What it does
 
-Separate lexical similarity from skill coverage, identify missing terms, and export analysis without raw resume text.
+Explore weekday/weekend, rain and event scenarios; inspect a full-day curve, an intensity strip and a downloadable JSON report.
 
 ## Model and evidence
 
-- **Method:** Frozen TF-IDF vectorizer plus cosine similarity; a separate 40-skill alias dictionary measures listed-skill overlap.
-- **Training data:** 15,068 deduplicated REAL legitimate EMSCAD job descriptions from2012–2014. No private resume corpus.
-- **Evaluation:** No supervised target or invented accuracy score. Exact Python/JavaScript cosine parity is tested.
-- **Pipeline:** Two texts → same frozen TF-IDF space → cosine similarity. Independent skill aliases → matched/missing list and coverage.
+- **Method:** 24-tree random forest regressor (max depth 8), with cyclical hour encodings, junction index and scenario flags.
+- **Training data:** 17,280 synthetic hourly observations over 120 days at six named junctions. Illustrative offsets and rush-hour curves are assumptions, not observations.
+- **Evaluation:** Time-ordered split: 12,960 Jan-Mar train rows / 4,320 April test rows. MAE 3.47 index points; R² 0.943 on synthetic data only.
+- **Pipeline:** Scenario → junction + sine/cosine hour + weekend/rain/event → exported tree traversal → mean regression output → hourly SVG line chart.
 
 ## Portfolio talking points
 
-Explain the feature pipeline, data provenance, holdout design, cross-language model export, and why the output is limited. No supervised match labels or ATS accuracy are claimed. Historical job vocabulary can miss contemporary terms/roles.
+Explain the feature pipeline, data provenance, holdout design, cross-language model export, and why the output is limited. Do not present synthetic metrics as real-world validation or claim clinical/ATS accuracy.
 
 ## Limitations and next steps
 
-Grow the corpus and dictionary, distinguish required/preferred skills, handle negation, and compare with a local embedding model using a human-rated benchmark.
+Use licensed measured traffic data, add rolling-origin validation and exogenous forecasts, and validate calibrated prediction intervals. Not usable as live route guidance.
 
 Read [`models/MODEL_CARD.md`](models/MODEL_CARD.md) before interpreting outputs.
 
-## Full-stack local and Render deployment
+## Run locally
 
-**Express backend + real PostgreSQL database are now included.** Same-origin server inference, opt-in saved analysis summaries, per-browser signed-cookie isolation, refresh/delete history. Raw document text is never stored. Browser-only inference remains an explicit offline/static option.
+Node **22.23.3 or newer** is required. `.nvmrc` pins the tested version.
 
-```
+```bash
 npm ci
 npm test
-npm run build
-npm start
+npm run dev
 ```
 
-Open http://localhost:3000. Local mode uses real embedded PostgreSQL (PGlite), persisted in .local-db. Render production uses external PostgreSQL via DATABASE_URL (Neon Free recommended over expiring Render Free DB). Model is pre-trained; no Python/API model account needed to run.
+Open the local URL printed by Vite. No Python, API keys, accounts or training are needed to use the app.
 
-**Read [RENDER_SETUP.md](RENDER_SETUP.md) for exact free-tier caveats, private DB/SESSION_SECRET setup and deploy steps.** Render build `npm ci && npm run build`; start `npm start`; health check `/api/health`; NODE_VERSION=22.23.3. Deploy FULL SOURCE, not only dist. No cloud deployment was performed; local SQL/API/browser tests are not a claim of a live Render deployment.
+## Deploy in under a minute (prebuilt)
 
-Static fallback: you can still Drop dist on Netlify, but only explicitly selected browser inference works there. No backend or history exists on a dist-only static upload.
+1. Extract the project ZIP.
+2. Sign in at [Netlify](https://app.netlify.com/login), then open [Netlify Drop](https://app.netlify.com/drop).
+3. Drag the **`dist` folder inside this project** into the drop area. Drop `dist`, not `src` or `models`.
+4. Open the `netlify.app` URL Netlify returns. The included `dist` is already production-built and tested.
+5. After source edits, run `npm ci && npm run build`, then deploy the new `dist`.
+
+Reference: [Netlify manual deployment docs](https://docs.netlify.com/manage/projects/add-new-project/).
+
+### GitHub-connected Netlify deployment
+
+Create a fresh GitHub repository and upload **the contents of this project folder** (README and package.json must sit at repository root). Do not upload the ZIP as your only file. Keep `node_modules` out of GitHub. In Netlify, import that repository, use build command `npm run build`, publish directory `dist`, and `NODE_VERSION=22.23.3`. `netlify.toml` already supplies these values.
+
+No Render server or Streamlit service is needed. The Python model was trained ahead of time; the JavaScript app evaluates the exact exported model locally.
 
 ## Reproduce the model (optional)
 
@@ -58,22 +69,18 @@ npm test
 npm run build
 ```
 
-Training downloads/hash-checks a public EMSCAD CSV (about60MB), not redistributed in the ZIP; see data/README.md. Training overwrites `models/model.json` and cross-language test fixtures. Fixed seed 42 makes the experiment reproducible within the pinned environment. Models are JSON, not pickle, so deployment does not execute deserialized Python objects.
+Training overwrites `models/model.json` and cross-language test fixtures. Fixed seed 42 makes the experiment reproducible within the pinned environment. Models are JSON, not pickle, so deployment does not execute deserialized Python objects.
 
 ## Architecture
 
 ```
 training/train.py  -> data + trained sklearn model -> models/model.json
-models/model.json -> server/inference.mjs -> Express API -> src/main.js UI
-server/db.mjs -> PostgreSQL analyses table (opt-in summaries only)
-models/model.json -> src/ml.mjs (explicit static/browser fallback)
+models/model.json -> browser inference in src/ml.mjs -> src/main.js UI
                      tests/model.test.mjs checks sklearn parity
 ```
 
 - `src/main.js`: input validation, rendering and interactions.
-- `src/ml.mjs`: shared inference/math functions used by server and browser fallback.
-- `server/`: Express API, model inference, SQL schema and parameterized repository.
-- `src/backend.mjs`: same-origin API calls and session history controls.
+- `src/ml.mjs`: pure inference/math functions; only the relevant functions are bundled.
 - `src/ui.mjs` / `src/style.css`: responsive interface and inline SVG charts.
 - `models/`: frozen model artifacts and model card.
 - `data/`: documented training data/corpus.
@@ -101,12 +108,16 @@ After deploying, you can replace these with your own screenshots. Live demo URL:
 
 ## Privacy and security
 
-Server mode sends input to the backend. Saving is explicit and stores only result summaries (which may include sensitive skills/terms), not raw input text. Signed HttpOnly browser-session cookie is not a login/account; no cross-device recovery. Cookie clearing loses access. SQL is parameterized, mutations require JSON/same-origin, limits/headers enabled. See RENDER_SETUP.md for retention/abuse/hosting-log caveats. Avoid sensitive personal records in a public demo.
+No analytics, remote model APIs, file uploads, cookies or local-storage persistence. Text/values are processed in browser memory and clear on refresh. Netlify still receives ordinary page requests; hosting access logs are separate from model inputs. Use exports carefully, especially health inputs. Dynamic text inserted into markup is escaped. Source and model weights are intentionally public when you publish the repository.
 
 ## Stack and design
 
-Python + scikit-learn for model fitting; framework-free JavaScript ES modules, Vite 8 and CSS for inference/UI. No remote fonts. Express, pg, PGlite, Helmet and rate limiting are server dependencies. Server inference and SQL history are inspectable; browser-only mode stays local. Near-black grid backgrounds, accent glows, bold Space Grotesk headings, Inter body text, gradient actions and responsive result panels make the interface cinematic. Both font files are bundled locally with their OFL licenses; no remote font requests. Motion respects prefers-reduced-motion.
+Python + scikit-learn for model fitting; framework-free JavaScript ES modules, Vite 8 and CSS for inference/UI. No third-party browser runtime dependencies or remote fonts. This keeps deployment small, avoids sending private inputs to a server, and makes inference inspectable. Near-black grid backgrounds, accent glows, bold Space Grotesk headings, Inter body text, gradient actions and responsive result panels make the interface cinematic. Both font files are bundled locally with their OFL licenses; no remote font requests. Motion respects prefers-reduced-motion.
 
 ## License
 
 Application code: MIT. Third-party datasets keep their original terms; see `data/README.md`. Do not claim model validation outside the stated dataset or population.
+
+## Optional REAL live traffic
+
+New separate live panel uses TomTom road-segment observations through a Netlify Function. It never labels current traffic as future ML prediction. Server-only key, manual requests, optional access password, no synthetic live substitution. Setup, current 20,000/month free API allowance, limitations and sources are in [LIVE_SETUP.md](LIVE_SETUP.md). **Live requires Git-connected full-source deploy and TOMTOM_API_KEY; dist-only Drop remains synthetic-only.** No actual key/production endpoint was tested; fixture tests do not prove provider access.
